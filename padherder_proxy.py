@@ -11,7 +11,7 @@ import select, socket, SocketServer, thread, urlparse, cStringIO
 import signal
 import re
 try: # new mitmproxy?
-    from mitmproxy import controller, proxy, flow, dump, cmdline, contentviews
+    from mitmproxy import controller, proxy, flow, dump, cmdline, contentviews, options as moptions
     from mitmproxy.proxy.server import ProxyServer
 except ImportError: # old mitmproxy?
     from libmproxy import controller, proxy, flow, dump, cmdline, contentviews
@@ -71,21 +71,21 @@ class PadMaster(flow.FlowMaster):
 
         f.request.host = sni or host_header
         f.request.port = port
-        
-        evt = custom_events.wxStatusEvent(message="Got HTTPS request, forwarding")            
+
+        evt = custom_events.wxStatusEvent(message="Got HTTPS request, forwarding")
         wx.PostEvent(self.status_ctrl,evt)
-        
+
         flow.FlowMaster.handle_request(self, f)
         if f:
             f.reply()
         return f
-        
+
     def handle_response(self, f):
         flow.FlowMaster.handle_response(self, f)
         if f:
             f.reply()
             if f.request.path.startswith('/api.php?action=get_player_data'):
-                evt = custom_events.wxStatusEvent(message="Got box data, processing...")            
+                evt = custom_events.wxStatusEvent(message="Got box data, processing...")
                 wx.PostEvent(self.status_ctrl,evt)
                 resp = f.response.content
                 type, lines = contentviews.get_content_view(
@@ -96,11 +96,11 @@ class PadMaster(flow.FlowMaster):
                 def colorful(line):
                     for (style, text) in line:
                         yield text
-                        
+
                 content = u"\r\n".join(
                     u"".join(colorful(line)) for line in lines
                 )
-                
+
                 cap = open('captured_data.txt', 'w')
                 cap.write(content)
                 cap.close()
@@ -115,20 +115,20 @@ class PadMaster(flow.FlowMaster):
                 def colorful(line):
                     for (style, text) in line:
                         yield text
-                        
+
                 content = u"\r\n".join(
                     u"".join(colorful(line)) for line in lines
                 )
-                
+
                 cap = open('captured_mail.txt', 'w')
                 cap.write(content)
                 cap.close()
-                
+
                 mails = parse_mail(content)
                 mails.reverse()
                 evt = custom_events.wxMailEvent(mails=mails)
                 wx.PostEvent(self.mail_tab, evt)
-                evt = custom_events.wxStatusEvent(message="Got mail data, processing...")            
+                evt = custom_events.wxStatusEvent(message="Got mail data, processing...")
                 wx.PostEvent(self.status_ctrl,evt)
             else:
                 config = wx.ConfigBase.Get()
@@ -146,19 +146,19 @@ class PadMaster(flow.FlowMaster):
                             def colorful(line):
                                 for (style, text) in line:
                                     yield text
-                                    
+
                             content = u"\r\n".join(
                                 u"".join(colorful(line)) for line in lines
                             )
-                            
+
                             cap = open('captured_%s.txt' % act, 'w')
                             cap.write(content)
                             cap.close()
-                            
-                            evt = custom_events.wxStatusEvent(message="Got custom capture %s" % act)            
+
+                            evt = custom_events.wxStatusEvent(message="Got custom capture %s" % act)
                             wx.PostEvent(self.status_ctrl,evt)
-                            
-                
+
+
         return f
 
 def serve_app(master):
@@ -170,7 +170,7 @@ def run_proxy(master):
 class MyGridTable(wx.grid.PyGridTableBase):
     def __init__(self, sync_records):
         self.sync_records = sync_records
-    
+
     def GetNumberRows(self):
         return len(self.sync_records)
 
@@ -209,7 +209,7 @@ class MyGridTable(wx.grid.PyGridTableBase):
     def SetValue(self, row, col, value):
         rec = self.sync_records[row]
         rec.action = value
-    
+
     def GetColLabelValue(self, col):
         if col == 0:
             return "Operation"
@@ -217,20 +217,20 @@ class MyGridTable(wx.grid.PyGridTableBase):
             return "Name"
         elif col == 2:
             return "Action"
-            
+
     def GetAttr(self, row, col, someExtraParameter ):
         if col != 2:
             attr = wx.grid.wxGridCellAttr()
             attr.SetReadOnly( 1 )
             return attr
         return None
-        
+
 class MailGridTable(wx.grid.PyGridTableBase):
     def __init__(self, mails, main_tab):
         wx.grid.PyGridTableBase.__init__(self)
         self.mails = mails
         self.main_tab = main_tab
-    
+
     def GetNumberRows(self):
         return len(self.mails)
 
@@ -272,11 +272,11 @@ class MailGridTable(wx.grid.PyGridTableBase):
 
     def SetValue(self, row, col, value):
         pass
-    
+
     def GetColLabelValue(self, col):
         return ['Type', 'Contents', 'Open', 'From', 'Subject', 'Time'][col]
-        
-        
+
+
     def GetAttr(self, row, col, someExtraParameter ):
         attr = wx.grid.GridCellAttr()
         attr.SetReadOnly(True)
@@ -295,14 +295,14 @@ class MainTab(wx.Panel):
         start_instructions = wx.StaticText(self, label="Just the first time, you need to add the HTTPS certificate to your iOS/Android device. To do this, go to your wifi settings and set up a manual HTTP proxy. Set the server to '%s' and the port to 8080. Then visit http://mitm.it in Safari/Chrome, click the link for your device, and install the configuration profile when asked. After this is done, turn off the HTTP proxy." % host)
         start_instructions.Wrap(580)
         grid.Add(start_instructions, pos=(0,0))
-        
+
         dns_instructions = wx.StaticText(self, label="To synchronize your box with padherder, enter your padherder username and password in Settings. Then go to your wifi settings and change your DNS server to '%s'. Then press the home button. If you switch to the DNS Proxy Log tab, you should see a bunch of log lines. Make sure Puzzle and Dragons is completely closed, and re-open it. Once you get in game, close PAD completely again and restore your DNS settings." % host)
         dns_instructions.Wrap(580)
         grid.Add(dns_instructions, pos=(1,0))
-        
+
         status_label = wx.StaticText(self, label="Status:")
         grid.Add(status_label, pos=(2,0))
-        
+
         self.status_ctrl = wx.TextCtrl(self, wx.ID_ANY, size=(400,300),
                           style = wx.TE_MULTILINE|wx.TE_READONLY)
         self.Bind(custom_events.EVT_STATUS_EVENT, self.onStatusEvent)
@@ -310,15 +310,15 @@ class MainTab(wx.Panel):
             self.status_ctrl.AppendText("You need to set your padherder username in Settings\n")
         if not config.Read("password"):
             self.status_ctrl.AppendText("You need to set your padherder password in Settings\n")
-        
+
         grid.Add(self.status_ctrl, pos=(3,0), span=(1,2))
-        
+
         if is_out_of_date(self):
             updateCtrl = HyperLinkCtrl(self, wx.ID_ANY, label="An updated version is available", URL="https://github.com/jgoldshlag/padherder_proxy")
             grid.Add(updateCtrl, pos=(4,0), span=(1,2))
-        
+
         self.SetSizer(grid)
-        
+
     def onStatusEvent(self,event):
         msg = event.message.strip("\r")+"\n"
         self.status_ctrl.AppendText(msg)
@@ -341,15 +341,15 @@ class DNSLogTab(wx.Panel):
         self.log.AppendText(msg)
         event.Skip()
 
-        
+
 class SettingsTab(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
-        
+
         config = wx.ConfigBase.Get()
         host = config.Read("host") or socket.gethostbyname(socket.gethostname())
         grid = wx.GridBagSizer(hgap=5, vgap=5)
-        
+
         lblUsername = wx.StaticText(self, label="Padherder Username:")
         grid.Add(lblUsername, pos=(0,0))
         self.editUsername = wx.TextCtrl(self, value=config.Read("username"), size=(140,-1))
@@ -367,11 +367,11 @@ class SettingsTab(wx.Panel):
         self.editHost = wx.TextCtrl(self, value=config.Read("host"), size=(140,-1))
         self.Bind(wx.EVT_TEXT, self.onHostChange, self.editHost)
         grid.Add(self.editHost, pos=(2,1))
-        
+
         lblHostHelp = wx.StaticText(self, label="Leave blank, unless your computer has multiple IPs. Restart app after changing this")
         lblHostHelp.Wrap(580)
         grid.Add(lblHostHelp, pos=(3,0), span=(1,2))
-        
+
         lblDNSPort = wx.StaticText(self, label="Port for DNS Proxy:")
         grid.Add(lblDNSPort, pos=(4,0))
         self.editDNSPort = wx.TextCtrl(self, value=config.Read("dnsport"), size=(140,-1))
@@ -403,17 +403,17 @@ class SettingsTab(wx.Panel):
         lblCustomCaptureHelp = wx.StaticText(self, label="Leave blank, unless you are raijinili. Comma separated list of actions to capture.")
         lblCustomCaptureHelp.Wrap(580)
         grid.Add(lblCustomCaptureHelp, pos=(9,0), span=(1,2))
-        
+
         self.SetSizer(grid)
-        
+
     def onUsernameChange(self, event):
         config = wx.ConfigBase.Get()
         config.Write("username", event.GetString())
-        
+
     def onPasswordChange(self, event):
         config = wx.ConfigBase.Get()
         config.Write("password", event.GetString())
-    
+
     def onHostChange(self, event):
         config = wx.ConfigBase.Get()
         config.Write("host", event.GetString())
@@ -421,11 +421,11 @@ class SettingsTab(wx.Panel):
     def onDNSPortChange(self, event):
         config = wx.ConfigBase.Get()
         config.Write("dnsport", event.GetString())
-    
+
     def onHTTPSPortChange(self, event):
         config = wx.ConfigBase.Get()
         config.Write("httpsport", event.GetString())
-        
+
     def onCustomCaptureChange(self, event):
         config = wx.ConfigBase.Get()
         config.Write("customcapture", event.GetString())
@@ -442,11 +442,11 @@ class MailTab(wx.Panel):
         self.sizer.Fit(self)
         self.main_tab = main_tab
         self.grid.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
-        
+
     def onKeyDown(self, event):
         if event.ControlDown() and event.GetKeyCode() == 67:
             self.copy()
-    
+
     def copy(self):
         if self.grid.GetSelectionBlockTopLeft() == []:
             rows = 1
@@ -496,24 +496,24 @@ class MainWindow(wx.Frame):
         self.Bind(custom_events.EVT_DNS_EVENT, self.onDNSEvent)
         self.proxy_master = None
         self.app_master = None
-        
+
         p = wx.Panel(self)
         nb = wx.Notebook(p)
-        
+
         self.main_tab = MainTab(nb)
         self.dns_tab = DNSLogTab(nb)
         settings_tab = SettingsTab(nb)
         self.mail_tab = MailTab(nb, self.main_tab)
-        
+
         nb.AddPage(self.main_tab, "Proxy")
         nb.AddPage(self.dns_tab, "DNS Proxy Log")
         nb.AddPage(settings_tab, "Settings")
         nb.AddPage(self.mail_tab, "PAD Mail")
-        
+
         sizer = wx.BoxSizer()
         sizer.Add(nb, 1, wx.EXPAND)
         p.SetSizer(sizer)
-        
+
         self.Show(True)
 
     def onClose(self, event):
@@ -522,16 +522,16 @@ class MainWindow(wx.Frame):
         if self.proxy_master is not None:
             self.proxy_master.shutdown()
         self.Destroy()
-    
+
     def onDNSEvent(self, event):
         if self.proxy_master is not None:
             self.proxy_master.shutdown()
-        
+
         if event.message.startswith('api-na'):
             region = 'NA'
         else:
             region = 'JP'
-        
+
         config = wx.ConfigBase.Get()
         host = config.Read("host") or socket.gethostbyname(socket.gethostname())
         httpsport = config.Read("httpsport") or "443"
@@ -552,7 +552,7 @@ def is_out_of_date(main_tab):
     session.headers = { 'accept': 'application/vnd.github.v3+json',
                         'user-agent': 'jgoldshlag-padherder_sync_' + PH_PROXY_VERSION,
                       }
-    
+
     session.mount('https://', requests.adapters.HTTPAdapter(pool_connections=1, pool_maxsize=1))
     try:
         r = session.get('https://api.github.com/repos/jgoldshlag/padherder_proxy/releases')
@@ -561,18 +561,18 @@ def is_out_of_date(main_tab):
         wx.PostEvent(main_tab, evt)
 
     if r.status_code != requests.codes.ok:
-        evt = custom_events.wxStatusEvent(message='Error checking for updates: %s %s' % (r.status_code, r.content))            
+        evt = custom_events.wxStatusEvent(message='Error checking for updates: %s %s' % (r.status_code, r.content))
         wx.PostEvent(main_tab, evt)
-    
+
     releases = json.loads(r.content)
     current_ver = LooseVersion(PH_PROXY_VERSION)
     for rel in releases:
         rel_version = LooseVersion(rel['tag_name'][1:])
         if rel_version > current_ver:
             return True
-    
+
     return False
-    
+
 def main():
     app = wx.App(False)
     if len(sys.argv) >= 2 and sys.argv[1] == '-test':
@@ -582,23 +582,23 @@ def main():
         config = wx.Config("padherder_proxy")
     wx.ConfigBase.Set(config)
     frame = MainWindow(None, "Padherder Proxy v%s" % PH_PROXY_VERSION)
-    
+
     host = config.Read("host") or socket.gethostbyname(socket.gethostname())
-    
+
     logger = dnsproxy.MyDNSLogger(frame.dns_tab)
     thread.start_new_thread(dnsproxy.serveDNS, (logger, frame.main_tab, frame))
-    
+
     try:
-        app_config = proxy.ProxyConfig(port=8080, host=host)
+        app_config = proxy.ProxyConfig(options=moptions.Options(app_port=8080, app_host=host))
         app_server = ProxyServer(app_config)
         app_master = dump.DumpMaster(app_server, dump.Options(app_host='mitm.it', app_port=80, app=True))
         frame.app_master = app_master
         thread.start_new_thread(app_master.run, ())
     except:
-        evt = custom_events.wxStatusEvent(message='Error initalizing mitm proxy:\n' + traceback.format_exc() + '\n\nYou probably put in an incorrect IP address in Settings')            
+        evt = custom_events.wxStatusEvent(message='Error initalizing mitm proxy:\n' + traceback.format_exc() + '\n\nYou probably put in an incorrect IP address in Settings')
         wx.PostEvent(frame.main_tab, evt)
 
     app.MainLoop()
-    
+
 if __name__ == '__main__':
     main()
