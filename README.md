@@ -4,7 +4,7 @@ MITM proxy to intercept Puzzles and Dragons box data and sync with padherder.com
 # Requires (only if you want to run from source)
 Python 2.7
 
-mitmproxy <= v0.17 (pip install mitmproxy==0.17)
+mitmproxy (pip install mitmproxy)
 
 requests (pip install requests)
 
